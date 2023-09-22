@@ -1,0 +1,13 @@
+{
+  "id": "commoncrawl:urn:uuid:4be920ad-4cf3-4880-8ea9-4afc9ea9fa7a",
+  "text": [
+    [
+      { "q": "A question" },
+      {
+        "a": "An answer"
+      }
+    ],
+    "Some text",
+    "Some more text"
+  ]
+}
