@@ -319,7 +319,12 @@ const wrap = (cl) => {
     if (!root) return;
     if (sel.rangeCount) {
       var range = sel.getRangeAt(0).cloneRange();
-      range.surroundContents(span);
+      try {
+        range.surroundContents(span);
+      } catch {
+        return;
+      }
+
       sel.removeAllRanges();
       sel.addRange(range);
     }
@@ -370,26 +375,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Selection listeners
-  document.addEventListener("selectionchange", () => {
-    var selection = document.getSelection();
-    if (!selection.toString().length) {
-      return;
-    }
-    const parents = {
-      start: selection.anchorNode.parentNode,
-      end: selection.focusNode.parentNode,
-    };
-
-    if (
-      parents.start.matches(qaClasses) ||
-      parents.end.matches(qaClasses) ||
-      parents.start.id != parents.end.id
-    ) {
-      document.getSelection().removeAllRanges();
-    }
-  });
-
   // Click listeners
   document.addEventListener("click", (e) => {
     document.querySelectorAll(qaClasses).forEach((el) => {
@@ -400,8 +385,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (e.target.matches("#download")) {
-      const fileName =
-        window.jsonlFile.name.split(".jsonl").shift() + "-annotated.jsonl";
+      fileName = window.jsonFile
+        ? window.jsonlFile.name.split(".jsonl").shift() + "-annotated.jsonl"
+        : "annotation.jsonl";
+
       const contents = document.querySelector("#target").innerHTML;
       const file = new File([contents], fileName, {
         type: "text/plain",
