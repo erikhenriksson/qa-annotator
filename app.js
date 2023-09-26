@@ -1,10 +1,19 @@
 /* Vars */
 
-window.data = [];
-window.jsonlFile = {};
 const qaClasses = ".question,.answer,.question-new,.answer-new";
 
 /* Utils */
+
+/*
+const updateStore = (item, key, value) => {
+  var it = localStorage.getItem(item);
+  it = it ? JSON.parse(it) : {};
+  console.log(key);
+  console.log(it);
+  it[key]["text"] = value;
+  localStorage.setItem(item, JSON.stringify(it));
+};
+*/
 
 const debounce = (func, wait = 300) => {
   let timeout;
@@ -30,8 +39,17 @@ const unEsc = (str) => {
   return str.replaceAll("\\n", "\n").replaceAll("\\r", "\r");
 };
 
+// Convert json to jsonl
+const jsonToJsonl = (json) => {
+  return json
+    .map((el) => {
+      return JSON.stringify(el);
+    })
+    .join("\n");
+};
+
 // Convert jsonl to json
-const parseJsonl = (jsonl) => {
+const jsonlToJson = (jsonl) => {
   const lines = jsonl.split(/\n/);
   let data = [];
   let error = false;
@@ -158,21 +176,28 @@ const convertHTMLtoJsonl = (html) => {
   return data;
 };
 
-// Update window.data for a document
+// Update localstorage with a document
 const updateJSONL = (el, docId) => {
-  if (!el.childElementCount) {
-    window.data[docId]["text"] = el.innerText;
-  } else {
-    window.data[docId]["text"] = convertHTMLtoJsonl(el);
-  }
+  const value = !el.childElementCount ? el.innerText : convertHTMLtoJsonl(el);
+  const localData = localStorage.getItem("data");
 
-  const jsonl = window.data
-    .map((el) => {
-      return JSON.stringify(el);
-    })
-    .join("\n");
+  // Get entire file from localstorage
+  const jsonData = jsonlToJson(localData);
 
+  // Update this doc
+  jsonData[docId]["text"] = value;
+
+  console.log(jsonData);
+
+  const jsonl = jsonToJsonl(jsonData);
+
+  console.log(jsonl);
+
+  // Update target textarea
   document.querySelector("#target").innerHTML = jsonl;
+
+  // Update localstorage
+  localStorage.setItem("data", jsonl);
 };
 
 // Convert a doc into HTML
@@ -218,22 +243,23 @@ const parseDoc = (doc) => {
 };
 
 // Refresh a doc
-
 const refreshDoc = (docId) => {
+  const data = jsonlToJson(localStorage.getItem("data"));
+  console.log(data);
   document.querySelector(`.doc[id="${docId}"]`).innerHTML = parseDoc(
-    window.data[docId].text
+    data[docId].text
   ).replace(/^\s+|\s+$/g, "");
 };
 
 // Create the annotator window
 const createAnnotator = (data) => {
-  const jsonData = parseJsonl(data);
-  window.data = jsonData;
-
   document.querySelector("#target").innerHTML = data;
+  const json = jsonlToJson(data);
+
+  localStorage.setItem("data", data);
 
   return `
-    ${jsonData
+    ${json
       .map((s, i) => {
         return `<div class="doc" id="${i}">${parseDoc(s.text).replace(/^\s+|\s+$/g, "")}</div>`; // prettier-ignore
       })
@@ -345,6 +371,15 @@ const initAnnotator = () => {
 /* Listeners */
 
 document.addEventListener("DOMContentLoaded", () => {
+  // HERE: check if exists in localstorage
+
+  const stored = localStorage.getItem("data");
+
+  if (stored) {
+    document.querySelector("#origin").value = stored;
+    initAnnotator();
+  }
+
   // Input listeners
   document.addEventListener("input", function (e) {
     if (e.target.matches("#origin")) {
@@ -356,7 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("change", (e) => {
     if (e.target.matches("#upload")) {
       const file = e.target.files[0];
-      window.jsonlFile = file;
+      localStorage.setItem("jsonlfile", JSON.stringify(file));
       const reader = new FileReader();
 
       reader.addEventListener(
@@ -385,9 +420,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (e.target.matches("#download")) {
-      fileName = window.jsonFile
-        ? window.jsonlFile.name.split(".jsonl").shift() + "-annotated.jsonl"
-        : "annotation.jsonl";
+      const localFile = localStorage.getItem("jsonlfile");
+      let fileName;
+      if (localFile) {
+        fileName =
+          JSON.parse(localFile).name.split(".jsonl").shift() +
+          "-annotated.jsonl";
+      } else {
+        fileName = "annotation.jsonl";
+      }
 
       const contents = document.querySelector("#target").innerHTML;
       const file = new File([contents], fileName, {
